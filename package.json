@@ -1,0 +1,46 @@
+{
+  "name": "halo-router",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/halojs/halo-router"
+  },
+  "main": "dist/index.js",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/halojs/halo-router/issues"
+  },
+  "scripts": {
+    "test": "./node_modules/.bin/nyc ./node_modules/.bin/ava tests/index.js",
+    "codecov": "./node_modules/.bin/nyc report --reporter=text-lcov > coverage.lcov && ./node_modules/.bin/codecov"
+  },
+  "devDependencies": {
+    "ava": "^0.19.1",
+    "babel-core": "^6.24.1",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
+    "codecov": "^2.1.0",
+    "koa": "^1.4.0",
+    "koa-mount": "^1.3.0",
+    "nyc": "^10.2.0",
+    "request": "^2.81.0"
+  },
+  "babel": {
+    "plugins": [
+      "transform-es2015-modules-commonjs"
+    ]
+  },
+  "ava": {
+    "concurrency": 5,
+    "require": "babel-core/register"
+  },
+  "nyc": {
+    "exclude": [
+      "node_modules",
+      "tests/*.js",
+      "tests/**/*.js"
+    ]
+  },
+  "dependencies": {
+    "path-to-regexp": "^1.7.0"
+  }
+}
