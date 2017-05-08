@@ -6,7 +6,7 @@ export default class {
     constructor(options = {}) {
         this.router = {}
         this.specialRouter = {}
-        this.opts = Object.assign({}, { dir: '' }, options)
+        this.opts = Object.assign({}, { dir: './controllers' }, options)
         this.methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH']
 
         this.registerHttpMethod()
