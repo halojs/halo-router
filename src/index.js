@@ -143,13 +143,7 @@ function isClassFunction(obj) {
 }
 
 function isAsyncFunction(func) {
-    if (func.constructor.name === 'AsyncFunction') {
-        return true
-    }
-
-    let str = func.toString().trim()
-
-    return !!(str.match(/^_async /) || str.match(/return _ref[^\.]*\.apply/))
+    return func.constructor.name === 'AsyncFunction'
 }
 
 function isObject(val) {
