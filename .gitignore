@@ -3,4 +3,3 @@ node_modules
 *.lock
 .nyc_output
 coverage
-dist
