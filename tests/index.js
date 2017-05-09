@@ -1,6 +1,6 @@
 import koa from 'koa'
 import test from 'ava'
-import Router from '../src'
+import router from '../src'
 import request from 'request'
 
 const req = request.defaults({
@@ -9,20 +9,21 @@ const req = request.defaults({
 })
 
 test.before.cb((t) => {
-    let app = koa()
-    let router = new Router({ dir: './tests' })
+    let app = new koa()
+    router({ dir: './tests' })
 
-    router.get('/test', function* (next) { this.body = 'get test' })
-    router.post('/test', function* (next) { this.body = 'post test' })
-    router.put('/test', function* (next) { this.body = 'put test' })
-    router.delete('/test', function* (next) { this.body = 'delete test' })
-    router.get('/test/:id/:name', function* (next) { this.body = this.params })
+    router.get('/test', async function(ctx, next) { ctx.body = 'get test' })
+    router.post('/test', async function(ctx, next) { ctx.body = 'post test' })
+    router.put('/test', async function(ctx, next) { ctx.body = 'put test' })
+    router.delete('/test', async function(ctx, next) { ctx.body = 'delete test' })
+    router.get('/test/:id/:name', async function(ctx, next) { ctx.body = ctx.params })
     router.get('/file_function', './tests/controller1.js')
-    router.get('/file_generator', './tests/controller2.js')
+    router.get('/file_async', './tests/controller2.js')
     router.get('/file_pureobject', './tests/controller3.js')
     router.get('/file_class', 'controller4.action')
     router.get('/file_class/:id', 'controller4.action')
     router.get('/file_notfound', './tests/controller5.js')
+    router.get('/file_class_method_no_async_function', 'controller4.test')
 
     app.use(router.routes())
     app.listen(3000, t.end)
@@ -86,7 +87,7 @@ test.cb('file handler, export pure function', (t) => {
 })
 
 test.cb('file handler, export generator function', (t) => {
-    req.get('/file_generator', (err, res, body) => {
+    req.get('/file_async', (err, res, body) => {
         t.is(body, 'controller2')
         t.end()
     })
@@ -115,6 +116,13 @@ test.cb('restful url, class handler, export class function', (t) => {
 
 test.cb('file not found, handler register fail', (t) => {
     req.get('/file_notfound', (err, res, body) => {
+        t.is(res.statusCode, 404)
+        t.end()
+    })
+})
+
+test.cb('class handler, but method no async function ', (t) => {
+    req.get('/file_class_method_no_async_function', (err, res, body) => {
         t.is(res.statusCode, 404)
         t.end()
     })

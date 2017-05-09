@@ -1,3 +1,3 @@
-export default function* (next) {
-    this.body = 'controller2'
+export default async function(ctx, next) {
+    ctx.body = 'controller2'
 }

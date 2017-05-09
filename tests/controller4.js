@@ -2,11 +2,11 @@ export default class {
     test() {
         return 'test'
     }
-    * action(next, ctx) {
-        if (this.params) {            
-            this.body = ctx.test() + this.params.id
+    async action(ctx, next) {
+        if (ctx.params) {            
+            ctx.body = this.test() + ctx.params.id
         } else {
-            this.body = ctx.test()
+            ctx.body = this.test()
         }
     }
 }

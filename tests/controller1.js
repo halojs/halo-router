@@ -1,5 +1,5 @@
 export default function () {
-    return function* (next) {
-        this.body = 'controller'
+    return async function(ctx, next) {
+        ctx.body = 'controller'
     }
 }

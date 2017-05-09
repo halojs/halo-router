@@ -2,115 +2,120 @@ import { statSync } from 'fs'
 import pathToRegexp from 'path-to-regexp'
 import { parse, join, isAbsolute, resolve, sep } from 'path'
 
-export default class {
-    constructor(options = {}) {
-        this.router = {}
-        this.specialRouter = {}
-        this.opts = Object.assign({}, { dir: './controllers' }, options)
-        this.methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH']
+let normalRouter, specialRouter, opts
 
-        this.registerHttpMethod()
-    }
-    registerHttpMethod() {
-        this.methods.map((method) => {
-            this[method.toLowerCase()] = (path, middleware) => this.register(adjustPath(path), method, middleware)
-        })
-    }
-    routes() {
-        let ctx = this
-        
-        return function* _router(next) {
-            let path, method, router, instance
+normalRouter = {}
+specialRouter = {}
+opts = { dir: './controllers' }
 
-            path = this.path
-            method = this.method.toUpperCase()
-            router = ctx.router[path] && ctx.router[path][method]
+export default function router(options) {
+    opts = Object.assign({}, opts, options)
 
-            if (router) {
-                if (isClassFunction(router)) {
-                    instance = new router()
-                    return yield* instance[router.action].call(this, next, instance)
-                }
-                
-                return yield* router.call(this, next)
+    return router
+}
+
+['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'].map((method) => {
+    router[method.toLowerCase()] = (path, middleware) => register(adjustPath(path), method, middleware)
+})
+
+router.routes = function() {
+    return async function _router(ctx, next) {
+        let path, method, routerObj, instance
+
+        path = ctx.path
+        method = ctx.method.toUpperCase()
+        routerObj = normalRouter[path] && normalRouter[path][method]
+
+        if (routerObj) {
+            if (isClassFunction(routerObj)) {
+                instance = new routerObj()
+                return await instance[routerObj.action].call(instance, ctx, next)
             }
-            
-            router = getSpecialRouter(ctx.specialRouter, method, path)
-            
-            if (router) {
-                this.params = converter(router.route.path.keys.reduce((total, item, index) => {
-                    return total[item.name] = router.matched[index + 1], total
-                }, {}))
-                
-                if (isClassFunction(router.route.middleware)) {
-                    instance = new router.route.middleware()
-                    return yield* instance[router.route.middleware.action].call(this, next, instance)
-                }
 
-                return yield* router.route.middleware.call(this, next)
-            }
-            
-            yield* next
-        }
-    }
-    register(path, method, middleware) {
-        if (typeof middleware === 'string') {
-            try {
-                middleware = getGeneratorMiddleware.call(this, middleware)
-            } catch(e) {
-                return
-            }
+            return await routerObj(ctx, next)
         }
         
-        if (~path.indexOf(':')) {
-            if (!this.specialRouter[method]) {
-                this.specialRouter[method] = []
+        routerObj = getSpecialRouter(specialRouter, method, path)
+        
+        if (routerObj) {
+            ctx.params = converter(routerObj.route.path.keys.reduce((total, item, index) => {
+                return total[item.name] = routerObj.matched[index + 1], total
+            }, {}))
+            
+            if (isClassFunction(routerObj.route.middleware)) {
+                instance = new routerObj.route.middleware()
+                return await instance[routerObj.route.middleware.action].call(instance, ctx, next)
             }
 
-            this.specialRouter[method].push({
-                middleware,
-                path: pathToRegexp(path)
-            })
-        } else {
-            if (!this.router[path]) {
-                this.router[path] = {}
-            }
-
-            this.router[path][method] = middleware
+            return await routerObj.route.middleware(ctx, next)
         }
+
+        await next()
     }
 }
 
-function getGeneratorMiddleware(middleware) {
+function register(path, method, middleware) {
+    if (typeof middleware === 'string') {
+        try {
+            middleware = getAsyncMiddleware(opts.dir, middleware)
+        } catch(e) {
+            return
+        }
+    }
+    
+    if (~path.indexOf(':')) {
+        if (!specialRouter[method]) {
+            specialRouter[method] = []
+        }
+
+        specialRouter[method].push({
+            middleware,
+            path: pathToRegexp(path)
+        })
+    } else {
+        if (!normalRouter[path]) {
+            normalRouter[path] = {}
+        }
+
+        normalRouter[path][method] = middleware
+    }
+}
+
+function getAsyncMiddleware(dir, middleware) {
     let path, result, modules
 
     if (isFilePath(middleware)) {
         path = toAbsolutePath(middleware)
     } else if (isControllerPath(middleware)) {
-        result = parseControllerPath(this.opts.dir, middleware)
+        result = parseControllerPath(dir, middleware)
         path = result.path
     }
     
     if (statSync(path).isFile()) {
         modules = required(path)
     }
-    
-    if (isFunction(modules)) {
-        middleware = modules()
-    }
 
-    if (isGeneratorFunction(modules)) {
+    if (isAsyncFunction(modules)) {
         middleware = modules
     }
     
     if (isClassFunction(modules) && modules.prototype[result.action]) {
+        if (!isAsyncFunction(modules.prototype[result.action])) {
+            console.error(`${result.action} must be async function`)
+            throw new Error()
+        }
+        
         middleware = modules
         middleware.action = result.action
     }
+
+    if (isFunction(modules)) {
+        middleware = modules()
+    }
     
     if (typeof middleware === 'string') {
-        middleware = function* (next) {
-            this.body = modules
+        middleware = async function(ctx, next) {
+            ctx.body = modules
         }
     }
     
@@ -129,20 +134,26 @@ function isControllerPath(str) {
     return typeof str === 'string' && str.split('.')[0] !== str
 }
 
-function isGeneratorFunction(obj) {
-    return obj.constructor.name === 'GeneratorFunction'
-}
-
 function isFunction(obj) {
     return obj.constructor.name === 'Function' && !isClassFunction(obj)
 }
 
-function isObject(val) {
-    return typeof val === 'object' && !Array.isArray(val)
-}
-
 function isClassFunction(obj) {
     return typeof obj === 'function' && /^\s*class\s+/.test(obj.toString())
+}
+
+function isAsyncFunction(func) {
+    if (func.constructor.name === 'AsyncFunction') {
+        return true
+    }
+
+    let str = func.toString().trim()
+
+    return !!(str.match(/^_async /) || str.match(/return _ref[^\.]*\.apply/))
+}
+
+function isObject(val) {
+    return typeof val === 'object' && !Array.isArray(val)
 }
 
 function required(path) {

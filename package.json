@@ -1,6 +1,6 @@
 {
   "name": "halo-router",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/halojs/halo-router"
@@ -19,8 +19,7 @@
     "babel-core": "^6.24.1",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
     "codecov": "^2.1.0",
-    "koa": "^1.4.0",
-    "koa-mount": "^1.3.0",
+    "koa": "^2.2.0",
     "nyc": "^10.2.0",
     "request": "^2.81.0"
   },
@@ -31,6 +30,7 @@
   },
   "ava": {
     "concurrency": 5,
+    "babel": "inherit",
     "require": "babel-core/register"
   },
   "nyc": {
