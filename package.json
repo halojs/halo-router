@@ -1,6 +1,6 @@
 {
   "name": "halo-router",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/halojs/halo-router"
@@ -11,11 +11,14 @@
     "url": "https://github.com/halojs/halo-router/issues"
   },
   "scripts": {
+    "prepublish": "npm run compile",
+    "compile": "node_modules/.bin/babel src -d dist",
     "test": "./node_modules/.bin/nyc ./node_modules/.bin/ava tests/index.js",
     "codecov": "./node_modules/.bin/nyc report --reporter=text-lcov > coverage.lcov && ./node_modules/.bin/codecov"
   },
   "devDependencies": {
     "ava": "^0.19.1",
+    "babel-cli": "^6.24.1",
     "babel-core": "^6.24.1",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
     "codecov": "^2.1.0",
