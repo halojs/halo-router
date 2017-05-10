@@ -23,11 +23,12 @@ opts = { dir: './controllers' };
 
 function router(options) {
     opts = Object.assign({}, opts, options);
+    router.PATH = toAbsolutePath(opts.dir);
 
     return router;
 }
 
-['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'].map(method => {
+router.PATH = toAbsolutePath(opts.dir);['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'].map(method => {
     router[method.toLowerCase()] = (path, middleware) => register(adjustPath(path), method, middleware);
 });
 
@@ -70,7 +71,7 @@ router.routes = function () {
 function register(path, method, middleware) {
     if (typeof middleware === 'string') {
         try {
-            middleware = getAsyncMiddleware(opts.dir, middleware);
+            middleware = getAsyncMiddleware(router.PATH, middleware);
         } catch (e) {
             return;
         }
@@ -191,7 +192,7 @@ function parseControllerPath(dir, path) {
 
     return {
         action: result.pop(),
-        path: toAbsolutePath((0, _path.join)(dir, result.join(_path.sep) + '.js'))
+        path: (0, _path.join)(dir, result.join(_path.sep) + '.js')
     };
 }
 
