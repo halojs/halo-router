@@ -2,85 +2,82 @@ import { statSync } from 'fs'
 import pathToRegexp from 'path-to-regexp'
 import { parse, join, isAbsolute, resolve, sep } from 'path'
 
-let normalRouter, specialRouter, opts
+export default class {
+    constructor(options) {
+        this.router = {}
+        this.specialRouter = {}
+        this.opts = Object.assign({}, { dir: './controllers' }, options)
+        this.methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH']
 
-normalRouter = {}
-specialRouter = {}
-opts = { dir: './controllers' }
-
-export default function router(options) {
-    opts = Object.assign({}, opts, options)
-    router.PATH = toAbsolutePath(opts.dir)
-    
-    return router
-}
-
-router.PATH = toAbsolutePath(opts.dir)
-
-;['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'].map((method) => {
-    router[method.toLowerCase()] = (path, middleware) => register(adjustPath(path), method, middleware)
-})
-
-router.routes = function() {
-    return async function _router(ctx, next) {
-        let path, method, routerObj, instance
-
-        path = ctx.path
-        method = ctx.method.toUpperCase()
-        routerObj = normalRouter[path] && normalRouter[path][method]
-
-        if (routerObj) {
-            if (isClassFunction(routerObj)) {
-                instance = new routerObj()
-                return await instance[routerObj.action].call(instance, ctx, next)
-            }
-
-            return await routerObj(ctx, next)
-        }
-        
-        routerObj = getSpecialRouter(specialRouter, method, path)
-        
-        if (routerObj) {
-            ctx.params = converter(routerObj.route.path.keys.reduce((total, item, index) => {
-                return total[item.name] = routerObj.matched[index + 1], total
-            }, {}))
-            
-            if (isClassFunction(routerObj.route.middleware)) {
-                instance = new routerObj.route.middleware()
-                return await instance[routerObj.route.middleware.action].call(instance, ctx, next)
-            }
-
-            return await routerObj.route.middleware(ctx, next)
-        }
-
-        await next()
+        this.registerHttpMethod()
     }
-}
-
-function register(path, method, middleware) {
-    if (typeof middleware === 'string') {
-        try {
-            middleware = getAsyncMiddleware(router.PATH, middleware)
-        } catch(e) {
-            return
-        }
-    }
-    
-    if (~path.indexOf(':')) {
-        if (!specialRouter[method]) {
-            specialRouter[method] = []
-        }
-
-        specialRouter[method].push({
-            middleware,
-            path: pathToRegexp(path)
+    registerHttpMethod() {
+        this.methods.map((method) => {
+            this[method.toLowerCase()] = (path, middleware) => this.register(adjustPath(path), method, middleware)
         })
-    } else {
-        if (!normalRouter[path]) {
-            normalRouter[path] = {}
-        }
+    }
+    routes() {
+        let context = this
 
-        normalRouter[path][method] = middleware
+        return async function _router(ctx, next) {
+            let path, method, routerObj, instance
+
+            path = ctx.path
+            method = ctx.method.toUpperCase()
+            routerObj = context.router[path] && context.router[path][method]
+
+            if (routerObj) {
+                if (isClassFunction(routerObj)) {
+                    instance = new routerObj()
+                    return await instance[routerObj.action].call(instance, ctx, next)
+                }
+
+                return await routerObj(ctx, next)
+            }
+            
+            routerObj = getSpecialRouter(context.specialRouter, method, path)
+            
+            if (routerObj) {
+                ctx.params = converter(routerObj.route.path.keys.reduce((total, item, index) => {
+                    return total[item.name] = routerObj.matched[index + 1], total
+                }, {}))
+                
+                if (isClassFunction(routerObj.route.middleware)) {
+                    instance = new routerObj.route.middleware()
+                    return await instance[routerObj.route.middleware.action].call(instance, ctx, next)
+                }
+
+                return await routerObj.route.middleware(ctx, next)
+            }
+
+            await next()
+        }
+    }
+    register(path, method, middleware) {
+        if (typeof middleware === 'string') {
+            try {
+                middleware = getAsyncMiddleware(this.opts.dir, middleware)
+            } catch(e) {
+                return
+            }
+        }
+        
+        if (~path.indexOf(':')) {
+            if (!this.specialRouter[method]) {
+                this.specialRouter[method] = []
+            }
+
+            this.specialRouter[method].push({
+                middleware,
+                path: pathToRegexp(path)
+            })
+        } else {
+            if (!this.router[path]) {
+                this.router[path] = {}
+            }
+
+            this.router[path][method] = middleware
+        }
     }
 }
 
@@ -181,7 +178,7 @@ function parseControllerPath(dir, path) {
     
     return {
         action: result.pop(),
-        path: join(dir, result.join(sep) + '.js')
+        path: toAbsolutePath(join(dir, result.join(sep) + '.js'))
     }
 }
 

@@ -1,6 +1,6 @@
 import koa from 'koa'
 import test from 'ava'
-import router from '../src'
+import Router from '../src'
 import request from 'request'
 
 const req = request.defaults({
@@ -10,7 +10,7 @@ const req = request.defaults({
 
 test.before.cb((t) => {
     let app = new koa()
-    router({ dir: './tests' })
+    let router = new Router({ dir: './tests' })
 
     router.get('/test', async function(ctx, next) { ctx.body = 'get test' })
     router.post('/test', async function(ctx, next) { ctx.body = 'post test' })

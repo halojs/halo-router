@@ -3,7 +3,6 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.default = router;
 
 var _fs = require('fs');
 
@@ -15,85 +14,85 @@ var _path = require('path');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-let normalRouter, specialRouter, opts;
+exports.default = class {
+    constructor(options) {
+        this.router = {};
+        this.specialRouter = {};
+        this.opts = Object.assign({}, { dir: './controllers' }, options);
+        this.methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'];
 
-normalRouter = {};
-specialRouter = {};
-opts = { dir: './controllers' };
+        this.registerHttpMethod();
+    }
+    registerHttpMethod() {
+        this.methods.map(method => {
+            this[method.toLowerCase()] = (path, middleware) => this.register(adjustPath(path), method, middleware);
+        });
+    }
+    routes() {
+        let context = this;
 
-function router(options) {
-    opts = Object.assign({}, opts, options);
-    router.PATH = toAbsolutePath(opts.dir);
+        return async function _router(ctx, next) {
+            let path, method, routerObj, instance;
 
-    return router;
-}
+            path = ctx.path;
+            method = ctx.method.toUpperCase();
+            routerObj = context.router[path] && context.router[path][method];
 
-router.PATH = toAbsolutePath(opts.dir);['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH'].map(method => {
-    router[method.toLowerCase()] = (path, middleware) => register(adjustPath(path), method, middleware);
-});
+            if (routerObj) {
+                if (isClassFunction(routerObj)) {
+                    instance = new routerObj();
+                    return await instance[routerObj.action].call(instance, ctx, next);
+                }
 
-router.routes = function () {
-    return async function _router(ctx, next) {
-        let path, method, routerObj, instance;
-
-        path = ctx.path;
-        method = ctx.method.toUpperCase();
-        routerObj = normalRouter[path] && normalRouter[path][method];
-
-        if (routerObj) {
-            if (isClassFunction(routerObj)) {
-                instance = new routerObj();
-                return await instance[routerObj.action].call(instance, ctx, next);
+                return await routerObj(ctx, next);
             }
 
-            return await routerObj(ctx, next);
-        }
+            routerObj = getSpecialRouter(context.specialRouter, method, path);
 
-        routerObj = getSpecialRouter(specialRouter, method, path);
+            if (routerObj) {
+                ctx.params = converter(routerObj.route.path.keys.reduce((total, item, index) => {
+                    return total[item.name] = routerObj.matched[index + 1], total;
+                }, {}));
 
-        if (routerObj) {
-            ctx.params = converter(routerObj.route.path.keys.reduce((total, item, index) => {
-                return total[item.name] = routerObj.matched[index + 1], total;
-            }, {}));
+                if (isClassFunction(routerObj.route.middleware)) {
+                    instance = new routerObj.route.middleware();
+                    return await instance[routerObj.route.middleware.action].call(instance, ctx, next);
+                }
 
-            if (isClassFunction(routerObj.route.middleware)) {
-                instance = new routerObj.route.middleware();
-                return await instance[routerObj.route.middleware.action].call(instance, ctx, next);
+                return await routerObj.route.middleware(ctx, next);
             }
 
-            return await routerObj.route.middleware(ctx, next);
+            await next();
+        };
+    }
+    register(path, method, middleware) {
+        if (typeof middleware === 'string') {
+            try {
+                middleware = getAsyncMiddleware(this.opts.dir, middleware);
+            } catch (e) {
+                return;
+            }
         }
 
-        await next();
-    };
+        if (~path.indexOf(':')) {
+            if (!this.specialRouter[method]) {
+                this.specialRouter[method] = [];
+            }
+
+            this.specialRouter[method].push({
+                middleware,
+                path: (0, _pathToRegexp2.default)(path)
+            });
+        } else {
+            if (!this.router[path]) {
+                this.router[path] = {};
+            }
+
+            this.router[path][method] = middleware;
+        }
+    }
 };
 
-function register(path, method, middleware) {
-    if (typeof middleware === 'string') {
-        try {
-            middleware = getAsyncMiddleware(router.PATH, middleware);
-        } catch (e) {
-            return;
-        }
-    }
-
-    if (~path.indexOf(':')) {
-        if (!specialRouter[method]) {
-            specialRouter[method] = [];
-        }
-
-        specialRouter[method].push({
-            middleware,
-            path: (0, _pathToRegexp2.default)(path)
-        });
-    } else {
-        if (!normalRouter[path]) {
-            normalRouter[path] = {};
-        }
-
-        normalRouter[path][method] = middleware;
-    }
-}
 
 function getAsyncMiddleware(dir, middleware) {
     let path, result, modules;
@@ -192,7 +191,7 @@ function parseControllerPath(dir, path) {
 
     return {
         action: result.pop(),
-        path: (0, _path.join)(dir, result.join(_path.sep) + '.js')
+        path: toAbsolutePath((0, _path.join)(dir, result.join(_path.sep) + '.js'))
     };
 }
 
