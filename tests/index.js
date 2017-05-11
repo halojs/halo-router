@@ -24,7 +24,8 @@ test.before.cb((t) => {
     router.get('/file_class/:id', 'controller4.action')
     router.get('/file_notfound', './tests/controller5.js')
     router.get('/file_class_method_no_async_function', 'controller4.test')
-
+    router.get('/test', async function(ctx, next) { ctx.body = 'get test' })
+    router.get('/test/:id/:name', async function(ctx, next) { ctx.body = ctx.params })
     router.maps([{
         url: '/maps',
         method: 'get',
