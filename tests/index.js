@@ -25,6 +25,14 @@ test.before.cb((t) => {
     router.get('/file_notfound', './tests/controller5.js')
     router.get('/file_class_method_no_async_function', 'controller4.test')
 
+    router.map([{
+        url: '/map',
+        method: 'get',
+        async middleware(ctx, next) {
+            ctx.body = 'map test'
+        }
+    }])
+
     app.use(router.routes())
     app.listen(3000, t.end)
 })
@@ -124,6 +132,13 @@ test.cb('file not found, handler register fail', (t) => {
 test.cb('class handler, but method no async function ', (t) => {
     req.get('/file_class_method_no_async_function', (err, res, body) => {
         t.is(res.statusCode, 404)
+        t.end()
+    })
+})
+
+test.cb('router instance map method test', (t) => {
+    req.get('/map', (err, res, body) => {
+        t.is(body, 'map test')
         t.end()
     })
 })
