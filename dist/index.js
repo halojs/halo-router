@@ -84,13 +84,26 @@ exports.default = class {
                 this.specialRouter[method] = [];
             }
 
+            for (let item of this.specialRouter[method]) {
+                if (item.origin === path) {
+                    console.error('\x1b[31m', `${method} ${path} url is exist`);
+                    return;
+                }
+            }
+
             this.specialRouter[method].push({
                 middleware,
+                origin: path,
                 path: (0, _pathToRegexp2.default)(path)
             });
         } else {
             if (!this.router[path]) {
                 this.router[path] = {};
+            }
+
+            if (this.router[path][method]) {
+                console.error('\x1b[31m', `${method} ${path} url is exist`);
+                return;
             }
 
             this.router[path][method] = middleware;
@@ -119,7 +132,7 @@ function getAsyncMiddleware(dir, middleware) {
 
     if (isClassFunction(modules) && modules.prototype[result.action]) {
         if (!isAsyncFunction(modules.prototype[result.action])) {
-            console.error(`${result.action} must be async function`);
+            console.error('\x1b[31m', `${result.action} must be async function`);
             throw new Error();
         }
 
