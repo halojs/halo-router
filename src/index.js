@@ -16,7 +16,7 @@ export default class {
             this[method.toLowerCase()] = (path, middleware) => this.register(adjustPath(path), method, middleware)
         })
     }
-    map(maps) {
+    maps(maps) {
         maps.map((item) => {
             this[item.method](item.url, item.middleware)
         })
