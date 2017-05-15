@@ -75,6 +75,7 @@ exports.default = class {
             try {
                 middleware = getAsyncMiddleware(this.opts.dir, middleware);
             } catch (e) {
+                console.log('\x1b[31m', e.message);
                 return;
             }
         }
@@ -117,8 +118,8 @@ function getAsyncMiddleware(dir, middleware) {
 
     if (isFilePath(middleware)) {
         path = toAbsolutePath(middleware);
-    } else if (isControllerPath(middleware)) {
-        result = parseControllerPath(dir, middleware);
+    } else if (isClassPath(middleware)) {
+        result = parseClassPath(dir, middleware);
         path = result.path;
     }
 
@@ -132,8 +133,7 @@ function getAsyncMiddleware(dir, middleware) {
 
     if (isClassFunction(modules) && modules.prototype[result.action]) {
         if (!isAsyncFunction(modules.prototype[result.action])) {
-            console.error('\x1b[31m', `${result.action} must be async function`);
-            throw new Error();
+            throw new Error(`${result.action} must be async function`);
         }
 
         middleware = modules;
@@ -161,7 +161,7 @@ function isFilePath(str) {
     return typeof str === 'string' && (0, _path.parse)(str).ext === '.js';
 }
 
-function isControllerPath(str) {
+function isClassPath(str) {
     return typeof str === 'string' && str.split('.')[0] !== str;
 }
 
@@ -204,7 +204,7 @@ function getSpecialRouter(router, method, path) {
     return route ? { route, matched } : null;
 }
 
-function parseControllerPath(dir, path) {
+function parseClassPath(dir, path) {
     let result = path.split('.');
 
     return {
