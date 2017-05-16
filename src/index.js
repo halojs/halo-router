@@ -32,12 +32,12 @@ export default class {
             routerObj = context.router[path] && context.router[path][method]
 
             if (routerObj) {
-                if (isClassFunction(routerObj)) {
-                    instance = new routerObj()
+                if (isClassFunction(routerObj.middleware)) {
+                    instance = new routerObj.middleware()
                     return await instance[routerObj.action].call(instance, ctx, next)
                 }
 
-                return await routerObj(ctx, next)
+                return await routerObj.middleware(ctx, next)
             }
             
             routerObj = getSpecialRouter(context.specialRouter, method, path)
@@ -49,7 +49,7 @@ export default class {
                 
                 if (isClassFunction(routerObj.route.middleware)) {
                     instance = new routerObj.route.middleware()
-                    return await instance[routerObj.route.middleware.action].call(instance, ctx, next)
+                    return await instance[routerObj.route.action].call(instance, ctx, next)
                 }
 
                 return await routerObj.route.middleware(ctx, next)
@@ -83,7 +83,8 @@ export default class {
             this.specialRouter[method].push({
                 middleware,
                 origin: path,
-                path: pathToRegexp(path)
+                path: pathToRegexp(path),
+                action: middleware.action
             })
         } else {
             if (!this.router[path]) {
@@ -95,7 +96,10 @@ export default class {
                 return
             }
 
-            this.router[path][method] = middleware
+            this.router[path][method] = {
+                middleware,
+                action: middleware.action
+            }
         }
     }
 }
